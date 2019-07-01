@@ -1,0 +1,6 @@
+*.sock
+.mypy_cache
+venv
+.idea
+web3_test.py
+*/**/__pycache__/
