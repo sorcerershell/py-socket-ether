@@ -1,6 +1,9 @@
 import socket
 import json
 import logging
+import signal
+import os
+import sys
 from typing import List
 from vault_server.protocol import EchoProtocol, SignTransferProtocol
 
@@ -8,18 +11,34 @@ from vault_server.protocol import EchoProtocol, SignTransferProtocol
 class VaultServer:
     log: logging.Logger
     sock: socket.socket
+    socketPath: str
     echoProtocol: EchoProtocol
+    kill_now = False
+
+
 
     def __init__(self, log: logging.Logger, echo: EchoProtocol, signTransfer: SignTransferProtocol):
         self.log = log
         self.echoProtocol = echo
         self.signTransferProtocol = signTransfer
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+
 
     def setup(self, socket_path: str) -> None:
+        self.socketPath = socket_path
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(socket_path)
+        self.sock.bind(self.socketPath)
         self.sock.listen(1)
+
+    def exit_gracefully(self, signum, frame):
+        self.log.warning('Exiting and cleaning up...')
+        self.kill_now = True
+        os.remove(self.socketPath)
+        sys.exit(0)
+
 
     def receive(self) -> None:
         conn, addr = self.sock.accept()
@@ -33,7 +52,8 @@ class VaultServer:
 
     def listen(self, socket_path: str):
         self.setup(socket_path)
-        while True:
+        while not self.kill_now:
+            self.log.info('Accepting connection...')
             self.receive()
 
     def process_message(self, message: str) -> bytes:

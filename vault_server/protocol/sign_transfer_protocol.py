@@ -19,7 +19,7 @@ class SignTransferProtocol:
         message_obj = json.loads(message)
         self.request = message_obj
 
-        id = self.request['id']
+        message_id = self.request['id']
         src_account = self.request['from_address']
         dst_account = self.request['to_address']
         value = Web3.toWei(self.request['amount'], 'ether')
@@ -28,16 +28,13 @@ class SignTransferProtocol:
         gas = 21000
         gas_price = 8000000
         real_value = value - (gas * gas_price)
-        # self.log.debug('src: %s dst: %s' % src_account % dst_account)
-        # self.log.debug('amount: %d gas_price: %d transfer_amount: ' % real_value)
-        print('here 3')
+
         try:
             self.log.debug("Opening Private Key")
             with open('./.keys/' + src_account[2:] + '.key') as keyfile:
                 encrypted_key = keyfile.read()
                 private_key = self.w3.eth.account.decrypt(encrypted_key, 'pocky chocolate flavour')
 
-            print('here 4')
             txn = dict(
                 nonce=0,
                 gasPrice=gas_price,
@@ -51,7 +48,7 @@ class SignTransferProtocol:
             signed_txn = self.w3.eth.account.signTransaction(txn, private_key)
             print(signed_txn)
             response = dict(
-                id=id,
+                id=message_id,
                 tx=signed_txn.rawTransaction.hex()
             )
         except IOError:
