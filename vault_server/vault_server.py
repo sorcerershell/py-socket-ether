@@ -15,16 +15,12 @@ class VaultServer:
     echoProtocol: EchoProtocol
     kill_now = False
 
-
-
     def __init__(self, log: logging.Logger, echo: EchoProtocol, signTransfer: SignTransferProtocol):
         self.log = log
         self.echoProtocol = echo
         self.signTransferProtocol = signTransfer
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-
 
     def setup(self, socket_path: str) -> None:
         self.socketPath = socket_path
@@ -38,7 +34,6 @@ class VaultServer:
         self.kill_now = True
         os.remove(self.socketPath)
         sys.exit(0)
-
 
     def receive(self) -> None:
         conn, addr = self.sock.accept()
@@ -57,28 +52,22 @@ class VaultServer:
             self.receive()
 
     def process_message(self, message: str) -> bytes:
-        lines = message.split("\n")
-        responses: List[str]
-        responses = []
+        response = ""
 
-        for line in lines:
-            self.log.debug("Received: %s" % line)
+        self.log.debug("Received: %s" % message)
 
-            if line == '':
-                continue
+        if message == '':
+            return
 
-            message_object = json.loads(line)
+        message_object = json.loads(message)
 
-            if "value" in message_object:
-                self.log.debug("message type: ECHO")
-                echo_response = self.echoProtocol.process(line)
-                responses.append(echo_response)
+        if "value" in message_object:
+            self.log.debug("message type: ECHO")
+            response = self.echoProtocol.process(message)
 
-            if "type" in message_object and message_object['type'] == 'sign_transfer':
-                self.log.debug("message type: SIGN TRANSFER")
-                sign_response = self.signTransferProtocol.process(line)
-                print(sign_response)
-                responses.append(sign_response)
 
-        response = "\n".join(responses).encode('ascii')
-        return response
+        if "type" in message_object and message_object['type'] == 'sign_transfer':
+            self.log.debug("message type: SIGN TRANSFER")
+            response = self.signTransferProtocol.process(message)
+
+        return response.encode('ascii')

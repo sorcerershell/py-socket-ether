@@ -1,7 +1,8 @@
 import json
 import logging
 import sys
-from web3 import Web3
+from web3 import Web3, middleware
+from web3.gas_strategies.time_based import fast_gas_price_strategy
 from web3.gas_strategies.time_based import fast_gas_price_strategy
 from typing import Dict
 
@@ -25,8 +26,10 @@ class SignTransferProtocol:
         value = Web3.toWei(self.request['amount'], 'ether')
 
         response = dict()
-        gas = 21000
-        gas_price = 8000000
+        nonce = self.fetch_nonce(src_account)
+        gas = self.estimate_gas(src_account, dst_account)
+        gas_price = self.estimate_gas_price()
+
         real_value = value - (gas * gas_price)
 
         try:
@@ -36,7 +39,7 @@ class SignTransferProtocol:
                 private_key = self.w3.eth.account.decrypt(encrypted_key, 'pocky chocolate flavour')
 
             txn = dict(
-                nonce=0,
+                nonce=nonce,
                 gasPrice=gas_price,
                 gas=gas,
                 to=dst_account,
@@ -55,6 +58,21 @@ class SignTransferProtocol:
             self.log.error(IOError)
 
         return json.dumps(response)
+
+    def estimate_gas(self, src_account, dst_account):
+        return self.w3.eth.estimateGas({'to': self.w3.toChecksumAddress(dst_account),
+                                        'from': self.w3.toChecksumAddress(src_account)})
+
+    def fetch_nonce(self, src_account):
+        return self.w3.eth.getTransactionCount(self.w3.toChecksumAddress(src_account), 'pending')
+
+    def estimate_gas_price(self):
+        self.w3.eth.setGasPriceStrategy(fast_gas_price_strategy)
+        self.w3.middleware_stack.add(middleware.time_based_cache_middleware)
+        self.w3.middleware_stack.add(middleware.latest_block_based_cache_middleware)
+        self.w3.middleware_stack.add(middleware.simple_cache_middleware)
+        gas_price = self.w3.eth.generateGasPrice()
+        return gas_price
 
     def value_based_gas_price_strategy(self, transaction_params):
         if transaction_params['value'] > self.w3.toWei(1, 'ether'):

@@ -8,9 +8,17 @@ TO_ADDRESS = "0xBb3042F6a37d73AB73Bd537bC3d8E204E37Eb062"
 
 
 def test_simple_echo_message():
-    request_message = b"""{"id":"1", "value":"this is the first command"}
-{"id":"2", "value":"this is the second command"}
-"""
+    request_message = b"""{"id":"1", "value":"this is the first command"}"""
+
+    print('Sending', request_message)
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect(SOCKET_PATH)
+        s.sendall(request_message)
+        data = s.recv(1024)
+
+    print('Received', repr(data))
+
+    request_message = b"""{"id":"1", "value":"this is the second command"}"""
 
     print('Sending', request_message)
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:

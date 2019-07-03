@@ -9,6 +9,7 @@ from vault_server.protocol import EchoProtocol, SignTransferProtocol
 
 
 def setup_logger() -> logging.Logger:
+    logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
